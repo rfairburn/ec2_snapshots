@@ -7,7 +7,7 @@ References:
 Note:
     Might be able to better use https://pypi.python.org/pypi/getch
     as an alternative.
-    Unusure of Mac OS X and Windows Support
+    Unusure of  Windows Support
     (module recommends msvcrt on Windows)
 '''
 
@@ -36,10 +36,7 @@ class _Getch(object):
         try:
             self.impl = _GetchWindows(self.timeout)
         except ImportError:
-            try:
-                self.impl = _GetchUnix(self.timeout)
-            except ImportError:
-                self.impl = _GetchMacCarbon(self.timeout)
+            self.impl = _GetchUnix(self.timeout)
 
     def __call__(self):
         '''
@@ -56,7 +53,6 @@ class _GetchUnix(object):
         '''
         Imports to make sure we can run
         '''
-        # import termios now or else you'll get the Unix version on the Mac
         import tty
         import sys
         import termios
@@ -118,49 +114,6 @@ class _GetchWindows(object):
                 break
         return c
 
-
-class _GetchMacCarbon(object):
-    '''
-    A function which returns the current ASCII key that is down;
-    if no ASCII key is down, the null string is returned.  The
-    page http://www.mactech.com/macintosh-c/chap02-1.html was
-    very helpful in figuring out how to do this.
-    '''
-    def __init__(self, timeout):
-        '''
-        Import Carbon on init
-        '''
-        import Carbon
-
-        self.timeout = timeout
-
-    def __call__(self):
-        '''
-        Grab the character
-        '''
-        import Carbon
-        import time
-        start_time = time.time()
-        event = Carbon.Event()
-        while True:
-            # 0x0008 is the keyDownMask
-            if not event.EventAvail(0x0008)[0] == 0:
-                #
-                # The event contains the following info:
-                # (what,msg,when,where,mod)=Carbon.Evt.GetNextEvent(0x0008)[1]
-                #
-                # The message (msg) contains the ASCII char which is
-                # extracted with the 0x000000FF charCodeMask; this
-                # number is converted to an ASCII character with chr() and
-                # returned
-                #
-                (what, msg, when, where, mod) = event.GetNextEvent(0x0008)[1]
-                c = chr(msg & 0x000000FF)
-                break
-            elif time.time() - start_time > self.timeout:
-                c = None
-                break
-            return c
 
 if __name__ == '__main__':
     char = _Getch()
