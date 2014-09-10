@@ -2,6 +2,13 @@
 # -*- coding: utf-8 -*-
 
 '''
+Written by Robert Fairburn
+robert.fairburn@c2fo.com
+
+http://www.c2fo.com
+http://devop.ninja
+https://github.com/rfairburn/ec2_snapshots
+
 Generate a list of hosts in ec2, Take snapshost of them.  Clean up
 old snapshots.
 
