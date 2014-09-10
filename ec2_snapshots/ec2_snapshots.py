@@ -370,6 +370,7 @@ def create_snapshot(host, conn):
     # Assume true unless issue
     success = True
     snapshots = []
+    canupdate = False
     hostname, host_data = host.items()[0]
     # print hostname
     for block_device, volume_id in host_data['block_devices'].items():
@@ -407,12 +408,14 @@ def create_snapshot(host, conn):
     while True:
         if threading.current_thread().stopped():
             break
-        time.sleep(30)
         snapshots_complete = True
         block_device_status = {}
         for snapshot in snapshots:
             # snapshot = conn.get_all_snapshots([snapshot.id])[0]
-            snapshot.update()
+            if canupdate:
+                snapshot.update()
+            else:
+                canupdate = True
             percent_string = str(snapshot.progress)
             try:
                 percent = int(percent_string[:-1])
@@ -438,6 +441,7 @@ def create_snapshot(host, conn):
             else:
                 acquire_lock(failed_list.extend, [hostname])
                 break
+        time.sleep(30)
 
 
 def delete_snapshot(snapshot):
