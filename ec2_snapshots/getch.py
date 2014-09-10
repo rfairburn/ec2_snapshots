@@ -67,10 +67,12 @@ class _GetchUnix(object):
         import sys
         import tty
         import termios
+        import time
 
         # Don't barf if we are not a tty, Just return nothing
         # because we won't expect a character anyhow
         if not sys.stdout.isatty():
+            time.sleep(timeout)
             return None
         fd = sys.stdin
         old_settings = termios.tcgetattr(fd)
