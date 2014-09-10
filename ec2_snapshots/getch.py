@@ -60,6 +60,7 @@ class _GetchUnix(object):
         import tty
         import sys
         import termios
+
         self.timeout = timeout
 
     def __call__(self):
@@ -71,6 +72,10 @@ class _GetchUnix(object):
         import tty
         import termios
 
+        # Don't barf if we are not a tty, Just return nothing
+        # because we won't expect a character anyhow
+        if not sys.stdout.isatty():
+            return None
         fd = sys.stdin
         old_settings = termios.tcgetattr(fd)
         ch = None
