@@ -72,7 +72,7 @@ class _GetchUnix(object):
         # Don't barf if we are not a tty, Just return nothing
         # because we won't expect a character anyhow
         if not sys.stdout.isatty():
-            time.sleep(timeout)
+            time.sleep(self.timeout)
             return None
         fd = sys.stdin
         old_settings = termios.tcgetattr(fd)

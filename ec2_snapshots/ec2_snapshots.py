@@ -33,7 +33,6 @@ from boto.exception import BotoClientError, BotoServerError, EC2ResponseError
 from datetime import datetime, timedelta
 from threading import Thread, Lock
 from Queue import Queue, Empty
-from StringIO import StringIO
 from getch import _Getch
 
 
@@ -68,14 +67,14 @@ def kill_all_threads():
     Loop the global threads and tell each to stop.
     Join to block until they quit.
     '''
-    print "Bleeding out the queue"
+    print 'Bleeding out the queue'
     while not q.empty():
         try:
             q.get(False)
         except Empty:
             continue
         q.task_done()
-    print "Killing worker threads"
+    print 'Killing worker threads'
     # send the kill event without blocking
     for thread in threads:
         thread.stop()
@@ -93,12 +92,7 @@ def progress_bar(percent):
     '''
     complete = int(percent // 5)
     todo = int(20 - complete)
-    bar_text = '['
-    for _ in range(complete):
-        bar_text += '#'
-    for _ in range(todo):
-        bar_text += '-'
-    bar_text += '] ' + str(percent) + '%'
+    bar_text = '[{0}{1}] {2}%'.format('#' * complete, '-' * todo, percent)
     return bar_text
 
 
@@ -110,16 +104,23 @@ def parse_args():
         description='Generate a list of hosts and generate/cleanup snapshots'
         )
     parser.add_argument(
-        '--interactive', '-i', required=False, help='Interactive',
+        '--interactive', '-i',
+        required=False,
+        help='Interactive',
         action='store_true')
     parser.add_argument(
-        '--days', '-d', required=False, help='Snapshot Keep Days', type=int,
+        '--days', '-d',
+        required=False, type=int,
+        help='Snapshot Keep Days',
         default='3')
     parser.add_argument(
-        '--threads', '-t', required=False, help='Worker Threads', type=int,
+        '--threads', '-t',
+        required=False, type=int,
+        help='Worker Threads',
         default='15')
     parser.add_argument(
-        '--region', '-r', required=False, help='EC2 Region',
+        '--region', '-r',
+        required=False, help='EC2 Region',
         default='us-west-2')
     args = parser.parse_args()
     return args
@@ -166,14 +167,16 @@ def generate_host_dict(instance, args):
     block_devices = {}
     block_device_status = {}
     for block_device_name, block_device_type in block_device_mapping.items():
-        # FIXME: This seems terribly redundant
+        # This seems terribly redundant, but we need a dict to use
+        # and one for the current progress, so there we are.
         # Generate Block Devices for Queue
         block_devices.update(
             {str(block_device_name): str(block_device_type.volume_id)}
         )
         # Block devices for the status dict
-        block_device_text = "%s (%s)" % (str(block_device_name),
-                                         str(block_device_type.volume_id))
+        block_device_text = '{0} ({1})'.format(
+            str(block_device_name),
+            str(block_device_type.volume_id))
         block_device_status.update({block_device_text: int(0)})
     hosts.update({hostname: block_device_status})
 
@@ -198,7 +201,7 @@ def populate_queue(conn, args):
     Afterward get all snapshots who's expire dates are older than now.
     '''
     # Add all hosts in region to be backed up to queue
-    print "Populating queue with instances to snapshot..."
+    print 'Populating queue with instances to snapshot...'
     reservations = conn.get_all_reservations()
     for reservation in reservations:
         instances = reservation.instances
@@ -207,14 +210,14 @@ def populate_queue(conn, args):
                 host = generate_host_dict(instance, args)
                 q.put(['create', host])
     # Add all expired snapshots to queue
-    print "Populating queue with snapshots to delete..."
+    print 'Populating queue with snapshots to delete...'
     snapshots = conn.get_all_snapshots()
     for snapshot in snapshots:
         if 'expire_time_unix' in snapshot.tags.keys():
             # get now in unixtime
             now = calendar.timegm(datetime.utcnow().utctimetuple())
             if now > int(snapshot.tags['expire_time_unix']):
-                print "%s scheduled for deletion" % snapshot.description
+                print '{0} scheduled for deletion'.format(snapshot.description)
                 q.put(['delete', snapshot])
 
 
@@ -264,10 +267,9 @@ def show_completed_count(action, length):
     '''
     use_s = 's' if length is not 1 else ''
     if action == 'create':
-        sys.stdout.write("\rCompleted %i host%s\n\r" % (length, use_s))
+        print 'Completed {0} host{1}'.format(length, use_s)
     elif action == 'delete':
-        sys.stdout.write("\rDeleted %i snapshot%s\n\r" % (length, use_s))
-    sys.stdout.flush()
+        print 'Deleted {0} snapshot{1}'.format(length, use_s)
 
 
 def draw_gui_hosts(make_all=False):
@@ -279,30 +281,15 @@ def draw_gui_hosts(make_all=False):
         output = yaml.dump(dict(gui_hosts), default_flow_style=False)
     else:
         output = ''
-    text_buffer = StringIO(output)
-    for line in text_buffer.readlines():
-        sys.stdout.write("\r%s" % line)
-        sys.stdout.flush()
-    sys.stdout.write("\n\r")
-    sys.stdout.flush()
+    print output
     length = len(completed_list)
     show_completed_count('create', length)
-    sys.stdout.write("\rHosts: %s\n\r" % ', '.join(completed_list))
-    sys.stdout.flush()
-    sys.stdout.write("\rFailed Hosts: %s\n\r" % ', '.join(failed_list))
-    sys.stdout.flush()
+    print 'Hosts: {0}'.format(', '.join(completed_list))
+    print 'Failed Hosts: {0}'.format(', '.join(failed_list))
     length = len(deleted_list)
     show_completed_count('delete', length)
-    sys.stdout.write(
-        "\rDeleted Snapshots: %s\n\r"
-        % ','.join(deleted_list)
-    )
-    sys.stdout.flush()
-    sys.stdout.write(
-        "\rFailed Snapshot Deletions: %s\n\r"
-        % ','.join(failed_delete_list)
-    )
-    sys.stdout.flush()
+    print 'Deleted Snapshots: {0}'.format(','.join(deleted_list))
+    print 'Failed Snapshot Deletions: {0}'.format(','.join(failed_delete_list))
     return gui_hosts
 
 
@@ -327,7 +314,7 @@ def interactive_watcher():
         character = text()
         os.system('cls' if sys.platform == 'win32' else 'clear')
         acquire_lock(draw_gui_hosts, make_all=full)
-        print "Press ESC to (q)uit or obtain (f)ull details."
+        print 'Press ESC to (q)uit or obtain (f)ull details.'
         if character == 'f':
             full = not full
         if character == 'q' or character == '\x1b':
@@ -381,14 +368,15 @@ def create_snapshot(host, conn):
     hostname, host_data = host.items()[0]
     # print hostname
     for block_device, volume_id in host_data['block_devices'].items():
-        name = "%s (%s): %s" % (hostname, host_data['id'], volume_id)
-        description = "%s (%s)" % (block_device, volume_id)
+        name = '{0} ({1}): {2}'.format(hostname, host_data['id'], volume_id)
+        description = '{0} ({1})'.format(block_device, volume_id)
         try:
             snapshot = conn.create_snapshot(
                 volume_id,
                 description=description,
             )
-            print "Creating snapshot %s named %s" % (str(snapshot.id), name)
+            print 'Creating snapshot {0} named {1}'.format(
+                str(snapshot.id), name)
             now = datetime.utcnow()
             expire_time = now + timedelta(
                 days=host_data['snapshot_keep_days']
@@ -433,10 +421,6 @@ def create_snapshot(host, conn):
                 snapshots_complete = False
             elif snapshot.status == 'error':
                 success = False
-            # print "percent is %s" % percent_string
-            # print "status is %s" % snapshot.status
-            # print snapshot.__dict__
-            # percent = int(percent_string[:-1])
             bd_text = str(snapshot.description)
             block_device_status.update({bd_text: percent})
         status = {hostname: block_device_status}
@@ -514,17 +498,17 @@ def main():
     args = parse_args()
     conn = boto.ec2.connect_to_region(args.region)
     populate_queue(conn, args)
-    print "Initial Queue Size %i" % int(q.qsize())
+    print 'Initial Queue Size {0}'.format(int(q.qsize()))
     if args.interactive:
         watcher = Thread(target=interactive_watcher)
     else:
         watcher = Thread(target=passive_watcher)
-    watcher.daemon = True
+    watcher.daemon = False
     watcher.start()
     num_worker_threads = args.threads
     for _ in range(num_worker_threads):
         thread = StoppableThread(target=worker, args=(conn,))
-        thread.daemon = True
+        thread.daemon = False
         thread.start()
         threads.extend([thread])
     q.join()
