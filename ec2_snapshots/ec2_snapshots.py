@@ -347,7 +347,7 @@ def passive_watcher():
         old_delete_length = delete_length
         delete_length = acquire_lock(len, deleted_list)
         if old_delete_length < delete_length:
-            show_completed_count('delete', length)
+            show_completed_count('delete', delete_length)
         # Stop if just the main thread and us.
         # queue.empty check misses some so do this.
         if threading.active_count() <= 2 and can_exit:
