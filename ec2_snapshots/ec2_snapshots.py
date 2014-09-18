@@ -274,7 +274,9 @@ def show_completed_count(action, length):
 
 def draw_gui_hosts(make_all=False):
     '''
-    Draw the output.  Use sys.stdout.write for formatting while threaded
+    Draw the output.  This will use yaml dump to write out the
+    dict all nice and pretty.  It will also showed the completions
+    and failures
     '''
     gui_hosts = make_gui_hosts(make_all)
     if gui_hosts:
